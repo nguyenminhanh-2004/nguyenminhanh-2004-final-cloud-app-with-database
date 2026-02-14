@@ -1,3 +1,4 @@
+from .models import Course, Lesson, Instructor, Learner, Enrollment, Question, Choice, Submission
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 # <HINT> Import any new Models here
