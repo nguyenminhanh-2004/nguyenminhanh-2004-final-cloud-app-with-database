@@ -133,5 +133,58 @@ def enroll(request, course_id):
         # Calculate the total score
 #def show_exam_result(request, course_id, submission_id):
 
+# ==========================================
+# XỬ LÝ NỘP BÀI THI VÀ TÍNH ĐIỂM (TASK 5)
+# ==========================================
+
+def submit(request, course_id):
+    user = request.user
+    if not user.is_authenticated:
+        return redirect('onlinecourse:login')
+
+    course = get_object_or_404(Course, pk=course_id)
+    learner = get_object_or_404(Learner, user=user)
+    enrollment = get_object_or_404(Enrollment, learner=learner, course=course)
+
+    # Tạo một bản ghi nộp bài (Submission) mới
+    submission = Submission(enrollment=enrollment)
+    submission.save()
+
+    # Quét qua từng câu hỏi và đáp án để xem học viên đã tích vào ô nào
+    for question in course.question_set.all():
+        for choice in question.choice_set.all():
+            choice_id = request.POST.get('choice_' + str(choice.id))
+            if choice_id:
+                selected_choice = Choice.objects.get(pk=choice_id)
+                submission.choices.add(selected_choice)
+
+    submission.save()
+    # Chuyển hướng sang trang kết quả sau khi nộp
+    return redirect('onlinecourse:show_exam_result', course_id=course_id, submission_id=submission.id)
+
+
+def show_exam_result(request, course_id, submission_id):
+    course = get_object_or_404(Course, pk=course_id)
+    submission = get_object_or_404(Submission, pk=submission_id)
+
+    # Tính toán điểm số
+    score = 0
+    total_grade = 0
+    for question in course.question_set.all():
+        total_grade += question.grade
+        # Lấy danh sách ID các đáp án học viên đã chọn cho câu hỏi này
+        selected_ids = submission.choices.filter(question=question).values_list('id', flat=True)
+        # Gọi hàm kiểm tra đúng/sai (đã viết ở models.py)
+        if question.is_get_score(selected_ids):
+            score += question.grade
+
+    context = {
+        'course': course,
+        'submission': submission,
+        'score': score,
+        'total_grade': total_grade
+    }
+    return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
+
 
 
